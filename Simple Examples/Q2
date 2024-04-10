@@ -1,0 +1,63 @@
+%%cuda
+#include <stdio.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <stdio.h>
+#include <cstdlib>
+#include <math.h>
+
+__global__ void add(int *x,int *y,int *z,int n)
+{
+    int index = threadIdx.x + blockDim.x*blockIdx.x;
+    if (index<n)
+    {
+        z[index] = x[index] + y[index];
+    }
+}
+
+// To add two vectors using N threads
+
+int main()
+{
+    int N = 1200;
+    int *x,*y,*z,*d_x,*d_y,*d_z;
+    int size = N*sizeof(int);
+
+    // Allocate memory to host variables
+
+    x = (int *)malloc(size);
+    y = (int *)malloc(size);
+    z = (int *)malloc(size);
+
+    // assign values to host variables
+
+    for(int i=0;i<N;i++)
+    {
+        x[i] = rand() % 100;
+        y[i] = rand() %100;
+    }
+
+    // Allocate memory to device variables
+
+    cudaMalloc(&d_x,size);
+    cudaMalloc(&d_y,size);
+    cudaMalloc(&d_z,size);
+
+    // Copy values from host to device variables
+    cudaMemcpy(d_x,x,size,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_y,y,size,cudaMemcpyHostToDevice);
+
+    // exeucte the kernel function
+
+    int blockSize = 256;
+    int gridSize = ceil(N/256);
+
+    add <<< gridSize, blockSize >>> (d_x,d_y,d_z,N);
+
+    cudaMemcpy(z,d_z,size,cudaMemcpyDeviceToHost);
+
+    for(int i=0;i<50;i++)
+    {
+        printf("%d \n",z[i]);
+    }
+}
