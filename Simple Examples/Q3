@@ -1,0 +1,64 @@
+%%cuda
+#include <stdio.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <stdio.h>
+#include <cstdlib>
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159
+#endif
+
+__global__ void converter(float *inputAngles, float *outputAngles, int n)
+{
+    int index = threadIdx.x + blockIdx.x*blockDim.x;
+    if (index<n)
+    {
+        outputAngles[index] = sinf(inputAngles[index]);
+    }
+}
+
+int main()
+{
+    int n = 6;
+    float inputAngles[] = {0.0, M_PI/6 , M_PI/4, M_PI/2, M_PI, 3*M_PI/2};
+    printf("Input angles \n");
+    for(int i=0;i<n;i++)
+    {
+        printf("%f \n", inputAngles[i]);
+    }
+    
+
+    float *d_input, *d_output;
+
+    float *outputAngles;
+
+    outputAngles = (float*)malloc(n*sizeof(float));
+
+    // Allocate memory to device variables
+
+    cudaMalloc(&d_input,n*sizeof(float));
+    cudaMalloc(&d_output,n*sizeof(float));
+
+    // Copy values from host to device variables
+
+    cudaMemcpy(d_input,inputAngles,sizeof(float)*n,cudaMemcpyHostToDevice);
+
+    int blockSize = 4;
+    int gridSize = (n/blockSize) + 1;
+    printf("gridsize: %d \n", gridSize);
+
+    converter <<< gridSize,blockSize >>> (d_input,d_output,n);
+
+    cudaMemcpy(outputAngles,d_output,sizeof(float)*n,cudaMemcpyDeviceToHost);
+
+    for(int i=0;i<n;i++)
+    {
+        printf("%f \n", outputAngles[i]);
+    }
+
+    return 0;
+
+
+}
