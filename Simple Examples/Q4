@@ -1,0 +1,76 @@
+%%cuda
+#include <stdio.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <stdio.h>
+#include <cstdlib>
+#include <math.h>
+#include <string.h>
+#include <sm_20_atomic_functions.h>
+
+__global__ void word_repeats(char* sentence, char* word, int sentenceLength, int wordLength, int* count) {
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+    // stride = 256
+    int localCount = 0;
+    int i = index;
+
+    // Each thread checks a part of the sentence for the word
+
+    // We use the if statement to ensure that a thread is assigned to each value of i. 
+
+    // Similarly if we use for (int i = index; i <= sentenceLength - wordLength; i += stride) it means that the loop will only run once, ensuring that i doesnt go beyound sentenceLength - wordLength
+
+    if (i <= (sentenceLength - wordLength))
+    {
+        printf("%d ", i);
+        bool wordFound = true;
+        for (int j = 0; j < wordLength; j++) {
+            if (sentence[i + j] != word[j]) {
+                wordFound = false;
+                break;
+            }
+        }
+        if (wordFound) {
+            localCount++;
+        }
+    }
+
+    // Use atomicAdd to safely add the local count to the global total
+    atomicAdd(count, localCount);
+}
+
+int main()
+{
+    char sentence[] = "I like to play football and then study. I also prefer to watch a show and then study study study";
+    char word[] = "study";
+    int *count;
+    char *d_sentence,*d_word;
+    int *d_count;
+    int sentence_length = strlen(sentence);
+    int word_length = strlen(word);
+
+    // Allocate memory to device variables
+
+    cudaMalloc(&d_sentence,sizeof(char)*sentence_length);
+    cudaMalloc(&d_word,sizeof(char)*word_length);
+    cudaMalloc(&d_count,sizeof(int));
+
+    // Copy values from host to device variables
+
+    cudaMemcpy(d_sentence,sentence,sizeof(char)*sentence_length,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_word,word,sizeof(char)*word_length,cudaMemcpyHostToDevice);
+    cudaMemset(d_count,0,sizeof(int));
+
+    int blockSize = 256;
+    int gridSize = sentence_length/blockSize + 1;
+
+    word_repeats <<< gridSize,blockSize >>> (d_sentence,d_word,sentence_length,word_length,d_count);
+
+    cudaMemcpy(&count,d_count,sizeof(int),cudaMemcpyDeviceToHost);
+
+    printf("The count is : %d", count);
+
+
+
+}
