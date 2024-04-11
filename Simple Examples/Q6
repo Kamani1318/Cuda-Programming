@@ -1,0 +1,57 @@
+%%cuda
+#include<stdio.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <string.h>
+#include <cstdlib>
+#include <math.h>
+
+__global__ void kernel(char *Sin,char *Sout,int n, int length)
+{
+    int index = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    if (index < n*length)
+    {
+        Sout[index] = Sin[index % length];
+    }
+}
+
+__global__ void kernel2(char *Sin,char *Sout,int n, int length)
+{
+    int index = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for(int i = index; i<n*length;i+=stride)
+      {
+          Sout[i] = Sin[i % length];
+          printf("%c", Sout[i]);
+      }
+}
+
+int main()
+{
+    char Sin[] = "Hello";
+    int length = strlen(Sin);
+    int n = 6;
+    char *Sout = (char*)malloc(length);
+    char *d_Sin, *d_Sout;
+
+    // Allocate memory to device variables
+
+    cudaMalloc(&d_Sin,length);
+    cudaMalloc(&d_Sout,length*n);
+
+    // Copy values from host to device variables
+
+    cudaMemcpy(d_Sin,Sin,length,cudaMemcpyHostToDevice);
+
+    kernel<<<1,256>>>(d_Sin,d_Sout,n,length);
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(Sout,d_Sout,length*n,cudaMemcpyDeviceToHost);
+
+    printf("input %s \n",Sin);
+    printf("output %s \n", Sout);
+
+    return 0;
+
+}
