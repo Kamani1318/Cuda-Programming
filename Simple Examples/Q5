@@ -1,0 +1,102 @@
+%%cuda
+#include<stdio.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <string.h>
+#include <cstdlib>
+#include <math.h>
+
+__global__ void reverse(char *sentence,char *reversedSentence, int *wordStart, int *wordLength, int numWords)
+{
+    int index = threadIdx.x + blockDim.x*blockIdx.x;
+    if (index < numWords)
+    {
+        int start = wordStart[index];
+        int length = wordLength[index];
+
+        for (int j = 0; j < length; j++)
+        {
+            reversedSentence[start + j] = sentence[start + length - j - 1];
+        }
+
+        // Add space after each word except the last one
+        if (index < numWords - 1) {
+            reversedSentence[start + length] = ' ';
+        }
+    }
+}
+
+int main()
+{
+    char sentence[] = "Hello I am Aryan";
+    int input_length = strlen(sentence);
+    int numWords = 1;
+    for(int i=0;i<input_length;i++)
+    {
+        if (sentence[i] == ' ')
+        {
+            numWords++;
+        }
+    }
+
+    char *d_inputSentence,*d_outputSentence;
+    int *d_wordStart, *d_wordLength;
+
+    cudaMalloc(&d_inputSentence,input_length);
+    cudaMalloc(&d_outputSentence,input_length);
+    cudaMalloc(&d_wordStart, numWords*sizeof(int));
+    cudaMalloc(&d_wordLength, numWords*sizeof(int));
+
+    cudaMemcpy(d_inputSentence, sentence, input_length, cudaMemcpyHostToDevice);
+
+    // Calculate word lengths and start indices for each word
+
+    int *wordStart = (int*)malloc(sizeof(int)*numWords);
+    int *wordLength = (int*)malloc(sizeof(int)*numWords);
+    int wordStartIndex = 0;
+    int k = 0;
+    for(int i=0;i<input_length;i++)
+    {
+        if (sentence[i] == ' ' || sentence[i] == '\0')
+        {
+            wordStart[k] = wordStartIndex;
+            wordLength[k] = i - wordStartIndex;
+            k++;
+            wordStartIndex = i + 1;
+        }
+    }
+    if (wordStartIndex != input_length)
+    {
+        wordStart[k] = wordStartIndex;
+        wordLength[k] = input_length - wordStartIndex;
+    }
+
+    cudaMemcpy(d_wordStart, wordStart, numWords * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_wordLength, wordLength, numWords * sizeof(int), cudaMemcpyHostToDevice);
+
+    int blockSize = 256;
+    int gridSize = (numWords + blockSize - 1) / blockSize;
+
+    reverse<<<gridSize,blockSize>>>(d_inputSentence,d_outputSentence,d_wordStart,d_wordLength,numWords);
+    cudaDeviceSynchronize();
+
+    char *reversedSentence = (char*)malloc(input_length + 1); // +1 for the null-terminating character
+
+    cudaMemcpy(reversedSentence, d_outputSentence, input_length, cudaMemcpyDeviceToHost);
+
+    reversedSentence[input_length] = '\0'; // Add the null-terminating character
+
+    printf("Input string: %s\n", sentence);
+    printf("Output string: %s\n", reversedSentence);
+
+    // Cleanup
+    cudaFree(d_inputSentence);
+    cudaFree(d_outputSentence);
+    cudaFree(d_wordStart);
+    cudaFree(d_wordLength);
+    free(wordStart);
+    free(wordLength);
+    free(reversedSentence);
+
+    return 0;
+}
