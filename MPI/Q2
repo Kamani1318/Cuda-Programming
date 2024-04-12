@@ -59,6 +59,23 @@ int main(int argc, char *argv[]) {
     {
         printf("Process 0 now has all prime numbers which are : %d", receivedPrimes);
     }
+
+    int receivedPrimes;
+    if (rank == 0)
+    {
+        // outbuf,outcnt,datatype,source,tag,comm,status
+        MPI_Recv(&receivedPrimes,1,MPI_INT,1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        numPrime = numPrime + receivedPrimes;
+        printf(" %d ", numPrime);
+    }
+    else
+    {
+        // inbuf,incnt,datatype,destination,tag,comm
+        MPI_Send(&numPrime,1,MPI_INT,0,0,MPI_COMM_WORLD);
+    }
+    //.            inbuf,outbuf,count,datatype,operation,root,comm
+    // or MPI_Recv(&numPrime,&receivedPrimes,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD)
+
     
     
     MPI_Finalize();
