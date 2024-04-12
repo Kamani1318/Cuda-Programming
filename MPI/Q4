@@ -1,0 +1,40 @@
+%%sh
+cat > hello.c << EOF
+#include <stdio.h>
+#include <string.h>
+#include <mpi.h>
+#include <stdbool.h>
+#define RANGE_START 1
+#define RANGE_END 100
+
+
+int main(int argc, char *argv[]) {
+    MPI_Init(&argc,&argv);
+    int rank,size;
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    int array[] = {12,23,45,48,39};
+    int length = sizeof(array)/sizeof(array[0]);
+    
+    if (rank == 0)
+    {
+        // Master Process
+        for(int i=1;i<size;i++)
+        {
+            MPI_Send(&array[i-1],1,MPI_INT,i,0,MPI_COMM_WORLD);
+        }
+    }
+    else
+    {
+        int received;
+        MPI_Recv(&received,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        printf("Process %d receives this number %d \n",rank,received);
+        
+    }
+    
+    
+    MPI_Finalize();
+    return 0;
+}
+EOF
+ls -l
